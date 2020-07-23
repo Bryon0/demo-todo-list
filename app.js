@@ -29,6 +29,13 @@ const item3 = new Item({
 
 let defaultItems = [item1, item2, item3];
 
+const listSchema = {
+	name: String,
+	items: [itemSchema]
+}
+
+const List = mongoose.model("list", listSchema);
+
 app.get('/', (req, res) => {
 	Item.find({}, (err, foundItems) => {
 
@@ -52,21 +59,63 @@ app.get('/', (req, res) => {
 	});
 });
 
+app.get('/:customListName', (req, res) => {
+	const customListName = req.params.customListName;
+		List.findOne({name: customListName}, (err, foundList) => {
+		if(!err) {
+			if(!foundList) {
+				const list = new List({
+					name: customListName,
+					items: defaultItems
+				});
+			
+				list.save();
+				res.redirect('/' + customListName);
+			} else {
+				res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
+			}			
+		}
+		else {			
+			console.log(err);
+		}
+	});
+});
+
 app.post('/', (req, res) => {	
 	console.log(req.body);	
 	const itemName = req.body.newItem;
+	const listName = req.body.list;
 
 	const item = new Item({
 		name: itemName
 	});
-	
-	//Mongoose shortcut
-	item.save();
-	res.redirect('/');
+
+	if(listName === "Today")
+	{
+		//Mongoo shortcut
+		item.save();
+		res.redirect('/');
+	} else {
+		List.findOne({name: listName}, (err, foundList) =>{
+			foundList.items.push(item);
+			foundList.save();
+			res.redirect('/' + listName);
+		});		
+	}
 });
 
 app.post('/delete', (req, res) => {
-	console.log(req.body);
+	const checkedItemId = req.body.checkbox;
+
+	Item.findByIdAndRemove(checkedItemId, (err) => {
+		if(err) {
+			console.log(err);
+		} else {
+			console.log("Sucessfully deleted item.");
+		}
+	});
+
+	res.redirect('/');
 })
 
 app.get('/work', (req, res) => {
